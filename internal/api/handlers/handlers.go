@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -15,9 +16,10 @@ func GetList(col c.Collection) http.HandlerFunc {
 
 		j, err := json.Marshal(list)
 		if err != nil {
-			panic(err)
+			log.Panic(err)
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(j)
 	}
 }
@@ -29,23 +31,25 @@ func GetByID(col c.Collection) http.HandlerFunc {
 
 		switch v := col.(type) {
 		case *c.StudentCollection:
-			examNumber := mux.Vars(r)["id"]
-			res = v.GetByID(examNumber)
+			studentID := mux.Vars(r)["id"]
+			res = v.GetByID(studentID)
 
 		case *c.ExamCollection:
-			studentID := mux.Vars(r)["number"]
-			res = v.GetByID(studentID)
+			examNumber := mux.Vars(r)["number"]
+			res = v.GetByID(examNumber)
 		}
 
 		if res == nil {
+			w.WriteHeader(400)
 			w.Write(nil)
 		}
 
 		j, err := json.Marshal(res)
 		if err != nil {
-			panic(err)
+			log.Panic(err)
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(j)
 	}
 }
