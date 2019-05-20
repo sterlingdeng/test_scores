@@ -1,13 +1,14 @@
-package collections 
+package collections
 
 import (
 	"encoding/json"
+	"strconv"
 	"sync"
-	// "fmt"
+
 	"github.com/r3labs/sse"
 )
 
-// ExamData provides struct for msg.Data to unmarshall into
+// ExamData provides a struct for msg.Data to unmarshal into
 type ExamData struct {
 	Exam      int32   `json:"exam"`
 	StudentID string  `json:"studentId"`
@@ -17,10 +18,9 @@ type ExamData struct {
 // HandleStream function is used to take in take in stream data and parse the information
 func HandleStream(ch chan *sse.Event, s *StudentCollection, e *ExamCollection) {
 	for {
-		msg := <-ch // channels are blocking.. so even though its in a forever for loop, it will block until there is something in the channel
+		msg := <-ch
 
 		var examData ExamData
-
 		err := json.Unmarshal(msg.Data, &examData)
 		if err != nil {
 			panic(err)
@@ -31,7 +31,30 @@ func HandleStream(ch chan *sse.Event, s *StudentCollection, e *ExamCollection) {
 	}
 }
 
-// StudentCollection provides structure to hold student exam data
+// AggregatedExams is the response for requests that hit the GET endpoints
+type AggregatedExams struct {
+	Exams   []*ExamData `json:"exams"`
+	Average float32     `json:"average"`
+}
+
+func calculateAverageExamScore(exams []*ExamData) float32 {
+	count := float32(len(exams))
+	var sum float32
+	for _, exam := range exams {
+		sum += exam.Score
+	}
+	return sum / count
+}
+
+// Collection defines the interface which is used by
+// the REST API handler
+type Collection interface {
+	GetList() []string
+	GetByID(string) *AggregatedExams
+}
+
+// StudentCollection provides quick look up of Exam Data by
+// student ID
 type StudentCollection struct {
 	Data map[string][]*ExamData
 	mu   sync.Mutex
@@ -45,10 +68,10 @@ func (s *StudentCollection) addData(examData *ExamData) {
 	s.Data[studentID] = append(s.Data[studentID], examData)
 }
 
-// GetAllStudents returns all the students, in the form of an 
+// GetList returns all the students, in the form of an
 // slice of strings, that have taken an exam
 // Used for the /students api endpoint
-func (s *StudentCollection) GetAllStudents() []string {
+func (s *StudentCollection) GetList() []string {
 	studentList := []string{}
 	for studentID := range s.Data {
 		studentList = append(studentList, studentID)
@@ -56,13 +79,9 @@ func (s *StudentCollection) GetAllStudents() []string {
 	return studentList
 }
 
-type StudentExamData struct {
-	Exams []*ExamData `json:"exams"` 
-	Average float32 `json:"average"`
-}
-
-func (s *StudentCollection) GetStudentById(id string) *StudentExamData {
-	studentExamData := &StudentExamData{
+// GetByID returns AggregatedExams, selected by student ID
+func (s *StudentCollection) GetByID(id string) *AggregatedExams {
+	studentExamData := &AggregatedExams{
 		Exams: []*ExamData{},
 	}
 
@@ -72,21 +91,14 @@ func (s *StudentCollection) GetStudentById(id string) *StudentExamData {
 		return nil
 	}
 
-	studentExamData.Exams = exams 
-	studentExamData.Average = calculateAverageExam(exams)	
+	studentExamData.Exams = exams
+	studentExamData.Average = calculateAverageExamScore(exams)
 
 	return studentExamData
 }
 
-func calculateAverageExam(exams []*ExamData) float32 {
-	count := float32(len(exams))
-	var sum float32
-	for _, exam := range exams {
-		sum += exam.Score
-	}
-	return sum/count
-}
-
+// ExamCollection provides quick look up of Exam Data by
+// exam ID
 type ExamCollection struct {
 	Data map[int32][]*ExamData
 	mu   sync.Mutex
@@ -101,33 +113,33 @@ func (e *ExamCollection) addData(examData *ExamData) {
 	e.Data[examID] = append(e.Data[examID], examData)
 }
 
-// GetAllExams gets the list of all exams, as a slice of int32
-func (e *ExamCollection) GetAllExams() []int32 {
-	examList := []int32{}
+// GetList gets the list of all exams, as a slice of int32
+func (e *ExamCollection) GetList() []string {
+	examList := []string{}
 	for examID := range e.Data {
-		examList = append(examList, examID)
+		examList = append(examList, strconv.Itoa(int(examID)))
 	}
 	return examList
 }
 
-type ExamStatsData struct {
-	Exams []*ExamData `json:"exams"`
-	Average float32 `json:"average"`
-}
-
-func (e *ExamCollection) GetExamByID(id int32) *ExamStatsData {
-	examStatsData := &ExamStatsData{
+// GetByID returns AggregatedExams, selected by exam ID
+func (e *ExamCollection) GetByID(id string) *AggregatedExams {
+	examStatsData := &AggregatedExams{
 		Exams: []*ExamData{},
 	}
 
-	exams, ok := e.Data[id]
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		panic(err)
+	}
+
+	exams, ok := e.Data[int32(intID)]
 	if !ok {
 		return nil
 	}
 
 	examStatsData.Exams = exams
-	examStatsData.Average = calculateAverageExam(exams)
+	examStatsData.Average = calculateAverageExamScore(exams)
 
 	return examStatsData
 }
-

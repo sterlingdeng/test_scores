@@ -3,9 +3,8 @@ package main
 import (
 	"net/http"
 
-  c "github.com/sterlingdeng/test_scores/internal/collections"
-  "github.com/sterlingdeng/test_scores/internal/api/student"
-  "github.com/sterlingdeng/test_scores/internal/api/exam"
+	"github.com/sterlingdeng/test_scores/internal/api/handlers"
+	c "github.com/sterlingdeng/test_scores/internal/collections"
 
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse"
@@ -23,11 +22,11 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/students", student_handlers.GetAllStudents(s)).Methods("GET")
-	r.HandleFunc("/students/{id}", student_handlers.GetStudentByID(s)).Methods("GET")
+	r.HandleFunc("/students", handlers.GetList(s)).Methods("GET")
+	r.HandleFunc("/students/{id}", handlers.GetByID(s)).Methods("GET")
 
-	r.HandleFunc("/exams", exam_handlers.GetAllExams(e)).Methods("GET")
-	r.HandleFunc("/exams/{number}", exam_handlers.GetExamByID(e)).Methods("GET")
+	r.HandleFunc("/exams", handlers.GetList(e)).Methods("GET")
+	r.HandleFunc("/exams/{number}", handlers.GetByID(e)).Methods("GET")
 
 	err := http.ListenAndServe(":8080", r)
 	if err != nil {
