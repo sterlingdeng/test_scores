@@ -8,6 +8,7 @@ import (
 	c "github.com/sterlingdeng/test_scores/internal/collections"
 )
 
+// GetList gets a list of entry keys of a collection.
 func GetList(col c.Collection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		list := col.GetList()
@@ -18,17 +19,15 @@ func GetList(col c.Collection) http.HandlerFunc {
 		}
 
 		w.Write(j)
-
 	}
 }
 
+// GetByID returns the AggregatedData struct, selected by a particular ID
 func GetByID(col c.Collection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		var res *c.AggregatedExams
 
 		switch v := col.(type) {
-
 		case *c.StudentCollection:
 			examNumber := mux.Vars(r)["id"]
 			res = v.GetByID(examNumber)

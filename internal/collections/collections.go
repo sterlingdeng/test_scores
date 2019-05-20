@@ -18,14 +18,13 @@ type ExamData struct {
 // HandleStream function is used to take in take in stream data and parse the information
 func HandleStream(ch chan *sse.Event, s *StudentCollection, e *ExamCollection) {
 	for {
+		var examData ExamData
 		msg := <-ch
 
-		var examData ExamData
 		err := json.Unmarshal(msg.Data, &examData)
 		if err != nil {
 			panic(err)
 		}
-
 		s.addData(&examData)
 		e.addData(&examData)
 	}
@@ -86,7 +85,6 @@ func (s *StudentCollection) GetByID(id string) *AggregatedExams {
 	}
 
 	exams, ok := s.Data[id]
-
 	if !ok {
 		return nil
 	}
