@@ -1,10 +1,17 @@
 package collections
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/r3labs/sse"
 )
 
+// ==================================
+// ******** Initial Setup ***********
+// ==================================
 var mockExamsSlice = []*ExamData{
 	&ExamData{
 		Exam:      1,
@@ -28,11 +35,11 @@ var mockExamsSlice = []*ExamData{
 	},
 }
 
-var studentCollection = StudentCollection{
+var studentCollection = &StudentCollection{
 	Data: make(map[string][]*ExamData),
 }
 
-var examCollection = ExamCollection{
+var examCollection = &ExamCollection{
 	Data: make(map[int32][]*ExamData),
 }
 
@@ -40,6 +47,42 @@ func init() {
 	for _, exam := range mockExamsSlice {
 		studentCollection.addData(exam)
 		examCollection.addData(exam)
+	}
+}
+
+// ==================================
+// ******** Begin Testing ***********
+// ==================================
+
+func Test_HandleStream(t *testing.T) {
+	ch := make(chan *sse.Event)
+	s := &StudentCollection{Data: make(map[string][]*ExamData)}
+	e := &ExamCollection{Data: make(map[int32][]*ExamData)}
+
+	go HandleStream(ch, s, e)
+
+	for _, examData := range mockExamsSlice {
+		j, err := json.Marshal(examData)
+		if err != nil {
+			panic(err)
+		}
+		sseEvent := &sse.Event{
+			ID:    nil,
+			Data:  j,
+			Event: nil,
+			Retry: nil,
+		}
+		ch <- sseEvent
+		ms := time.Millisecond
+		time.Sleep(25 * ms)
+	}
+
+	if length := len(s.Data); length != 3 {
+		t.Errorf("Could not add data to StudentCollection via streams. Got length %v, want length %v", length, 3)
+	}
+
+	if length := len(e.Data); length != 3 {
+		t.Errorf("Could not add data to ExamCollection via streams. Got length %v, want length %v", length, 3)
 	}
 }
 
